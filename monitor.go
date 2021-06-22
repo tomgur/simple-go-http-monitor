@@ -40,7 +40,7 @@ func GetOutboundIP() net.IP {
 
 func main() {
 	// the URL to monitor
-	url := "https://uprightpose.com"
+	url := "https://google.com"
 	interval := 10
 	from := ""
 	scrapePort := "9100"
@@ -69,8 +69,8 @@ func main() {
 	summary := prometheus.NewSummary(prometheus.SummaryOpts{
 		Namespace:   "monitoring",
 		Subsystem:   "website",
-		Name:        "upright_website_load_time",
-		Help:        "Upright Website Load Time",
+		Name:        "google_load_time",
+		Help:        "Google Website Load Time",
 		ConstLabels: prometheus.Labels{"from": from},
 		Objectives:  map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		MaxAge:      0,
