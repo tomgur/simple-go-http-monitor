@@ -1,4 +1,4 @@
-#Simple HTTP monitor
+# Simple HTTP monitor
 
 ### A Simple HTTP monitor written in Golang that exposes its findings to Prometheus
 
