@@ -1,4 +1,4 @@
-#Simple HTTP monitor
+# Simple HTTP monitor
 
 ### A Simple HTTP monitor written in Golang that exposes its findings to Prometheus
  The monitor reads its target from env vars, and exposes a `Summary` with quantiles: `0.5`, `0.9`, `0.99`
