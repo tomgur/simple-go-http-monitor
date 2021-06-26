@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -38,12 +40,49 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
+func PreCheck() bool {
+	fmt.Printf("[INFO ] Starting pre-check\n")
+	port := "scrapePort"
+	url := "monitorUrl"
+	interval := "monitorInterval"
+	subsystem := "subsystem"
+	metricName := "metricName"
+	metricHelp := "metricHelp"
+	portVal, scrapePortPresent := os.LookupEnv(port)
+	urlVal, urlPresent := os.LookupEnv(url)
+	intervalVal, intervalPresent := os.LookupEnv(interval)
+	subsystemVal, subsystemPresent := os.LookupEnv(subsystem)
+	metricNameVal, metricNamePresent := os.LookupEnv(metricName)
+	metricHelpVal, metricHelpPresent := os.LookupEnv(metricHelp)
+	fmt.Printf("[DEBUG] %s: [%s]\n", port, portVal)
+	fmt.Printf("[DEBUG] %s: [%s]\n", url, urlVal)
+	fmt.Printf("[DEBUG] %s: [%s]\n", interval, intervalVal)
+	fmt.Printf("[DEBUG] %s: [%s]\n", subsystem, subsystemVal)
+	fmt.Printf("[DEBUG] %s: [%s]\n", metricName, metricNameVal)
+	fmt.Printf("[DEBUG] %s: [%s]\n", metricHelp, metricHelpVal)
+	if !urlPresent || !subsystemPresent || !metricNamePresent || !metricHelpPresent || !intervalPresent || !scrapePortPresent{
+		log.Fatal("Missing environment variables. please set: scrapePort, monitorUrl, monitorInterval, subsystem, metricName, metricHelp")
+	}
+	fmt.Printf("[INFO ] All necessary environment variables are set\n")
+	return true
+}
+
+func GetEnvVar(varName string) string {
+	result := os.Getenv(varName)
+	fmt.Printf("[INFO ] Returning Environment Variable [%s]=[%s]\n", varName, result)
+	return result
+}
+
 func main() {
-	// the URL to monitor
-	url := "https://google.com"
-	interval := 10
+	// Will fail if missing env vars
+	PreCheck()
 	from := ""
-	scrapePort := "9100"
+	scrapePort := GetEnvVar("scrapePort")
+	interval := GetEnvVar("monitorInterval")
+	url := GetEnvVar("monitorUrl")
+	subsystem := GetEnvVar("subsystem")
+	metricName := GetEnvVar("metricName")
+	metricHelp := GetEnvVar("metricHelp")
 
 	// 1 Sec timeout for the EC2 info site (if it's not there, the default timeout is 30 sec...)
 	client := http.Client{
@@ -68,9 +107,9 @@ func main() {
 	// create and register a new `Summary` with Prometheus
 	summary := prometheus.NewSummary(prometheus.SummaryOpts{
 		Namespace:   "monitoring",
-		Subsystem:   "website",
-		Name:        "google_load_time",
-		Help:        "Google Website Load Time",
+		Subsystem:   subsystem,
+		Name:        metricName,
+		Help:        metricHelp,
 		ConstLabels: prometheus.Labels{"from": from},
 		Objectives:  map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		MaxAge:      0,
@@ -80,8 +119,9 @@ func main() {
 	prometheus.Register(summary)
 
 	// Start the monitoring loop
-	fmt.Printf("[INFO ] Starting to to monitor [%s], interval [%d]\n", url, interval)
-	monitorWebsite(summary, url, interval)
+	fmt.Printf("[INFO ] Starting to to monitor [%s], interval [%s]\n", url, interval)
+	intervalStr, err := strconv.Atoi(interval)
+	monitorWebsite(summary, url, intervalStr)
 
 	// Start the server, and set the /metrics endpoint to be served by the promhttp package
 	fmt.Printf("[INFO ] Starting to serve metrics on port [%s]\n", scrapePort)
