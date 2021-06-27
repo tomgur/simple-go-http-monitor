@@ -5,13 +5,13 @@
 
 ---
 #### SETUP
-1. The monitor will not start unless the following environment variables are set: 
-* `scrapePort` - The port on which Prometheus will scrape the metrics
-* `subsystem` - The subsystem (i.e. server/website)
-* `monitorUrl` - The URL that should be monitored
-* `monitorInterval` - how often the monitor should run in seconds
-* `metricName` - the name of the published metric
-* `metricHelp` - the help message for the metric
+1. The following env vars can be set for configuring the monitor
+* `scrapePort` - The port on which Prometheus will scrape the metrics (defautl 9100)
+* `subsystem` - The subsystem (i.e. server/website - defualt website)
+* `monitorUrl` - The URL that should be monitored (default https://google.com)
+* `monitorInterval` - how often the monitor should run in seconds (defautlt 10)
+* `metricName` - the name of the published metric (google_website_load_time)
+* `metricHelp` - the help message for the metric (Google website load time)
 
 2. Run the monitor (3 options)
 * After exporting all env vars, issue the following command `go run monitor.go`

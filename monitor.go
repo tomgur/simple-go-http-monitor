@@ -40,49 +40,23 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func PreCheck() bool {
-	fmt.Printf("[INFO ] Starting pre-check\n")
-	port := "scrapePort"
-	url := "monitorUrl"
-	interval := "monitorInterval"
-	subsystem := "subsystem"
-	metricName := "metricName"
-	metricHelp := "metricHelp"
-	portVal, scrapePortPresent := os.LookupEnv(port)
-	urlVal, urlPresent := os.LookupEnv(url)
-	intervalVal, intervalPresent := os.LookupEnv(interval)
-	subsystemVal, subsystemPresent := os.LookupEnv(subsystem)
-	metricNameVal, metricNamePresent := os.LookupEnv(metricName)
-	metricHelpVal, metricHelpPresent := os.LookupEnv(metricHelp)
-	fmt.Printf("[DEBUG] %s: [%s]\n", port, portVal)
-	fmt.Printf("[DEBUG] %s: [%s]\n", url, urlVal)
-	fmt.Printf("[DEBUG] %s: [%s]\n", interval, intervalVal)
-	fmt.Printf("[DEBUG] %s: [%s]\n", subsystem, subsystemVal)
-	fmt.Printf("[DEBUG] %s: [%s]\n", metricName, metricNameVal)
-	fmt.Printf("[DEBUG] %s: [%s]\n", metricHelp, metricHelpVal)
-	if !urlPresent || !subsystemPresent || !metricNamePresent || !metricHelpPresent || !intervalPresent || !scrapePortPresent{
-		log.Fatal("Missing environment variables. please set: scrapePort, monitorUrl, monitorInterval, subsystem, metricName, metricHelp")
-	}
-	fmt.Printf("[INFO ] All necessary environment variables are set\n")
-	return true
-}
-
-func GetEnvVar(varName string) string {
+func GetVarOrDefault(varName string, defaultValue string) string {
 	result := os.Getenv(varName)
-	fmt.Printf("[INFO ] Returning Environment Variable [%s]=[%s]\n", varName, result)
+	if result == "" {
+		result = defaultValue
+		fmt.Printf("[INFO ] Environment Variable [%s] not set - setting supplied default [%s]\n", varName, result)
+	}
 	return result
 }
 
 func main() {
-	// Will fail if missing env vars
-	PreCheck()
 	from := ""
-	scrapePort := GetEnvVar("scrapePort")
-	interval := GetEnvVar("monitorInterval")
-	url := GetEnvVar("monitorUrl")
-	subsystem := GetEnvVar("subsystem")
-	metricName := GetEnvVar("metricName")
-	metricHelp := GetEnvVar("metricHelp")
+	scrapePort := GetVarOrDefault("scrapePort", "9100")
+	interval := GetVarOrDefault("monitorInterval", "10")
+	url := GetVarOrDefault("monitorUrl", "https://google.com")
+	subsystem := GetVarOrDefault("subsystem", "website")
+	metricName := GetVarOrDefault("metricName", "google_website_load_time")
+	metricHelp := GetVarOrDefault("metricHelp", "Google website load time")
 
 	// 1 Sec timeout for the EC2 info site (if it's not there, the default timeout is 30 sec...)
 	client := http.Client{
