@@ -1,11 +1,13 @@
 # Simple HTTP monitor
 
 ### A Simple HTTP monitor written in Golang that exposes its findings to Prometheus
- The monitor reads its target from env vars, and exposes a `Summary` with quantiles: `0.5`, `0.9`, `0.99`
+The monitor reads its target from env vars, and exposes a `Summary` with quantiles: `0.5`, `0.9`, `0.99`
 
 ---
 #### SETUP
 1. The following env vars can be set for configuring the monitor
+
+_Running the monitor without setting variables will Monitor Google once every 10 seconds and expose the metrics on port 9100_
 * `scrapePort` - The port on which Prometheus will scrape the metrics (defautl 9100)
 * `subsystem` - The subsystem (i.e. server/website - defualt website)
 * `monitorUrl` - The URL that should be monitored (default https://google.com)
