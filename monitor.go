@@ -1,9 +1,8 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,6 +10,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // The monitoring loop
@@ -42,21 +44,24 @@ func GetOutboundIP() net.IP {
 
 func GetVarOrDefault(varName string, defaultValue string) string {
 	result := os.Getenv(varName)
+	fmt.Printf(varName, result)
 	if result == "" {
 		result = defaultValue
-		fmt.Printf("[INFO ] Environment Variable [%s] not set - setting supplied default [%s]\n", varName, result)
+		fmt.Printf("[INFO] Environment Variable [%s] not set - setting supplied default [%s]\n", varName, result)
 	}
 	return result
 }
 
 func main() {
 	from := ""
-	scrapePort := GetVarOrDefault("scrapePort", "9100")
-	interval := GetVarOrDefault("monitorInterval", "10")
-	url := GetVarOrDefault("monitorUrl", "https://google.com")
-	subsystem := GetVarOrDefault("subsystem", "website")
-	metricName := GetVarOrDefault("metricName", "google_website_load_time")
-	metricHelp := GetVarOrDefault("metricHelp", "Google website load time")
+	var scrapePort = flag.String("scrapePort", "9100", "The port on which Prometheus will scrape the metrics")
+	var interval = flag.String("monitorInterval", "10", "How often the monitor should run in seconds")
+	var url = flag.String("url", "https://hub.docker.com/r/tomgurdev/simple-go-http-monitor", "The URL that should be monitored")
+	var subsystem = flag.String("subsystem", "website", " The subsystem (i.e. server/website)")
+	var metricName = flag.String("metricName", "dockerHub_tomgurdev_simple-go-http-monitor_website_load_time", "The name of the published metric")
+	var metricHelp = flag.String("metricHelp", "Docker Hub Simple Go HTTP Monitor website load time", "tTe help message for the metric")
+	flag.Parse()
+	fmt.Println("[INFO] Using the following parameters, scrapePort:", *scrapePort, " monitorInterval:", *interval, " url:", *url, " subsystem:", *subsystem, " metricName:", *metricName, " metricHelp:", *metricHelp)
 
 	// 1 Sec timeout for the EC2 info site (if it's not there, the default timeout is 30 sec...)
 	client := http.Client{
@@ -81,9 +86,9 @@ func main() {
 	// create and register a new `Summary` with Prometheus
 	summary := prometheus.NewSummary(prometheus.SummaryOpts{
 		Namespace:   "monitoring",
-		Subsystem:   subsystem,
-		Name:        metricName,
-		Help:        metricHelp,
+		Subsystem:   *subsystem,
+		Name:        *metricName,
+		Help:        *metricHelp,
 		ConstLabels: prometheus.Labels{"from": from},
 		Objectives:  map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		MaxAge:      0,
@@ -93,12 +98,15 @@ func main() {
 	prometheus.Register(summary)
 
 	// Start the monitoring loop
-	fmt.Printf("[INFO ] Starting to to monitor [%s], interval [%s]\n", url, interval)
-	intervalStr, err := strconv.Atoi(interval)
-	monitorWebsite(summary, url, intervalStr)
-
+	fmt.Printf("[INFO ] Starting to to monitor [%s], interval [%s]\n", *url, *interval)
+	intervalStr, err := strconv.Atoi(*interval)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		monitorWebsite(summary, *url, intervalStr)
+	}
 	// Start the server, and set the /metrics endpoint to be served by the promhttp package
-	fmt.Printf("[INFO ] Starting to serve metrics on port [%s]\n", scrapePort)
+	fmt.Printf("[INFO ] Starting to serve metrics on port [%s]\n", *scrapePort)
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":"+scrapePort, nil)
+	http.ListenAndServe(":"+*scrapePort, nil)
 }
