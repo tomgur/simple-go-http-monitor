@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -38,18 +37,14 @@ func GetOutboundIP() net.IP {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}(conn)
+	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP
 }
 
 func GetVarOrDefault(varName string, defaultValue string) string {
 	result := os.Getenv(varName)
+	fmt.Printf(varName, result)
 	if result == "" {
 		result = defaultValue
 		fmt.Printf("[INFO ] Environment Variable [%s] not set - setting supplied default [%s]\n", varName, result)
@@ -80,12 +75,7 @@ func main() {
 		from = localAddress.String()
 	} else {
 		//if we got an answer from EC2 info site, and we know the AZ, set `from=AZ`
-		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}(response.Body)
+		defer response.Body.Close()
 		bodyBytes, _ := ioutil.ReadAll(response.Body)
 		from = string(bodyBytes)
 	}
@@ -102,10 +92,7 @@ func main() {
 		AgeBuckets:  0,
 		BufCap:      0,
 	})
-	err = prometheus.Register(responseTimeSummary)
-	if err != nil {
-		return
-	}
+	prometheus.Register(responseTimeSummary)
 	// create and register a new `Gauge` with prometheus for the response statuse
 	responseStatus := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   "monitoring",
@@ -126,8 +113,5 @@ func main() {
 	// Start the server, and set the /metrics endpoint to be served by the promhttp package
 	fmt.Printf("[INFO ] Starting to serve metrics on port [%s]\n", scrapePort)
 	http.Handle("/metrics", promhttp.Handler())
-	err = http.ListenAndServe(":"+scrapePort, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	http.ListenAndServe(":"+scrapePort, nil)
 }
