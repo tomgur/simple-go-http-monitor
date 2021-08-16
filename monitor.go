@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -14,17 +15,19 @@ import (
 )
 
 // The monitoring loop
-func monitorWebsite(loadTime prometheus.Summary, url string, interval int) {
+func monitorWebsite(loadTime prometheus.Summary, responseStatus prometheus.Gauge, url string, interval int) {
 	go func() {
 		for {
 			now := time.Now()
 			// Sends an HTTP GET to the website
 			get, _ := http.Get(url)
 			elapsed := time.Since(now).Seconds()
+			status := get.StatusCode
 			// Prints the status code and the elapsed time
-			fmt.Printf("[INFO ] Status: [%d] Load time [%f]\n", get.StatusCode, elapsed)
+			fmt.Printf("[INFO ] Status: [%d] Load time [%f]\n", status, elapsed)
 			// Updates Prometheus with the elapsed time
 			loadTime.Observe(elapsed)
+			responseStatus.Set(float64(status))
 			time.Sleep(time.Duration(interval) * time.Second)
 		}
 	}()
@@ -35,7 +38,12 @@ func GetOutboundIP() net.IP {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(conn)
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP
 }
@@ -55,8 +63,7 @@ func main() {
 	interval := GetVarOrDefault("monitorInterval", "10")
 	url := GetVarOrDefault("monitorUrl", "https://google.com")
 	subsystem := GetVarOrDefault("subsystem", "website")
-	metricName := GetVarOrDefault("metricName", "google_website_load_time")
-	metricHelp := GetVarOrDefault("metricHelp", "Google website load time")
+	componentName := GetVarOrDefault("componentName", "google_website")
 
 	// 1 Sec timeout for the EC2 info site (if it's not there, the default timeout is 30 sec...)
 	client := http.Client{
@@ -73,32 +80,54 @@ func main() {
 		from = localAddress.String()
 	} else {
 		//if we got an answer from EC2 info site, and we know the AZ, set `from=AZ`
-		defer response.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(response.Body)
 		bodyBytes, _ := ioutil.ReadAll(response.Body)
 		from = string(bodyBytes)
 	}
 
 	// create and register a new `Summary` with Prometheus
-	summary := prometheus.NewSummary(prometheus.SummaryOpts{
+	var responseTimeSummary = prometheus.NewSummary(prometheus.SummaryOpts{
 		Namespace:   "monitoring",
 		Subsystem:   subsystem,
-		Name:        metricName,
-		Help:        metricHelp,
+		Name:        componentName + "_load_time",
+		Help:        componentName + " Load Time",
 		ConstLabels: prometheus.Labels{"from": from},
 		Objectives:  map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		MaxAge:      0,
 		AgeBuckets:  0,
 		BufCap:      0,
 	})
-	prometheus.Register(summary)
-
+	err = prometheus.Register(responseTimeSummary)
+	if err != nil {
+		return
+	}
+	// create and register a new `Gauge` with prometheus for the response statuse
+	responseStatus := prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace:   "monitoring",
+		Subsystem:   subsystem,
+		Name:        componentName + "_response_status",
+		Help:        componentName + " response HTTP status",
+		ConstLabels: prometheus.Labels{"from": from},
+	})
+	err = prometheus.Register(responseStatus)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Start the monitoring loop
 	fmt.Printf("[INFO ] Starting to to monitor [%s], interval [%s]\n", url, interval)
 	intervalStr, err := strconv.Atoi(interval)
-	monitorWebsite(summary, url, intervalStr)
+	monitorWebsite(responseTimeSummary, responseStatus, url, intervalStr)
 
 	// Start the server, and set the /metrics endpoint to be served by the promhttp package
 	fmt.Printf("[INFO ] Starting to serve metrics on port [%s]\n", scrapePort)
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":"+scrapePort, nil)
+	err = http.ListenAndServe(":"+scrapePort, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
