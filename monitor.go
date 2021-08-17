@@ -44,7 +44,6 @@ func GetOutboundIP() net.IP {
 
 func GetVarOrDefault(varName string, defaultValue string) string {
 	result := os.Getenv(varName)
-	fmt.Printf(varName, result)
 	if result == "" {
 		result = defaultValue
 		fmt.Printf("[INFO ] Environment Variable [%s] not set - setting supplied default [%s]\n", varName, result)
@@ -56,9 +55,9 @@ func main() {
 	from := ""
 	scrapePort := GetVarOrDefault("scrapePort", "9100")
 	interval := GetVarOrDefault("monitorInterval", "10")
-	url := GetVarOrDefault("monitorUrl", "https://google.com")
+	url := GetVarOrDefault("monitorUrl", "https://hub.docker.com/repository/docker/tomgurdev/simple-go-http-monitor")
 	subsystem := GetVarOrDefault("subsystem", "website")
-	componentName := GetVarOrDefault("componentName", "google_website")
+	componentName := GetVarOrDefault("componentName", "simple_http_monitor_docker_hub")
 
 	// 1 Sec timeout for the EC2 info site (if it's not there, the default timeout is 30 sec...)
 	client := http.Client{
