@@ -17,7 +17,7 @@ _Running the monitor without setting variables will Monitor This project's docke
 2. Run the monitor (3 options)
 * After exporting all env vars, issue the following command `go run monitor.go`
 * After exporting all env vars, build the go executable and run it `go build monitor.go; ./monitor`
-* Build a docker image containing the monitor app and run it `docker build -t monitor:1 .; docker run --name monitor --restart always -d -p 9100:9100 -e "scrapePort=9100" -e "subsystem=website" -e "monitorUrl=https://hub.docker.com/repository/docker/tomgurdev/simple-go-http-monitor" -e "monitorInterval=10" -e "componentName=simple-http-monitor-docker-hub" mymonitor:1`
+* Build a docker image containing the monitor app and run it `docker build -t monitor:1 .; docker run --name monitor --restart always -d -p 9100:9100 -e "scrapePort=9100" -e "subsystem=website" -e "monitorUrl=https://hub.docker.com/repository/docker/tomgurdev/simple-go-http-monitor" -e "monitorInterval=10" -e "componentName=simple_http_monitor_docker_hub" mymonitor:1`
   
 ### Metrics
 * Metrics will be exposed at the host IP on the port set in `scrapePort` at the `/metrics` endpoint (i.e. `1.2.3.4:9100/metrics`)
