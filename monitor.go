@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,6 +9,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // The monitoring loop
@@ -19,7 +20,12 @@ func monitorWebsite(loadTime prometheus.Summary, responseStatus prometheus.Gauge
 		for {
 			now := time.Now()
 			// Sends an HTTP GET to the website
-			get, _ := http.Get(url)
+			get, err := http.Get(url)
+			if err != nil {
+				fmt.Printf("[ERR ]: %v\n", err)
+				time.Sleep(time.Duration(interval) * time.Second)
+				continue
+			}
 			elapsed := time.Since(now).Seconds()
 			status := get.StatusCode
 			// Prints the status code and the elapsed time
